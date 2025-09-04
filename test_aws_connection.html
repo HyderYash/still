@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS S3 Connection Test</title>
+</head>
+
+<body>
+    <h1>AWS S3 Connection Test</h1>
+    <button onclick="testAWSConnection()">Test AWS Connection</button>
+    <div id="result"></div>
+
+    <script type="module">
+        // Test AWS S3 connection
+        async function testAWSConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                // Test with a sample S3 key
+                const testKey = '0b39420d-768d-492a-ab2f-6de901d6b28f/7b305c9b-dbae-4e54-9468-ac1e8c47c236//24705efc-02be-4542-9838-39da6980223cprocessed-image%20%281%29.jpg';
+
+                // Make a request to your backend to generate a signed URL
+                const response = await fetch('/api/test-s3', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ key: testKey })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <h3>✅ AWS Connection Successful!</h3>
+                        <p><strong>Signed URL:</strong> ${data.url}</p>
+                        <p><strong>Expires:</strong> ${data.expires}</p>
+                        <br>
+                        <h4>Testing Image Load:</h4>
+                        <img src="${data.url}" alt="Test Image" style="max-width: 300px; border: 1px solid #ccc;" onload="this.style.borderColor='green'" onerror="this.style.borderColor='red'; this.alt='Failed to load image'">
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<h3>❌ Backend Error</h3><p>${response.status}: ${response.statusText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<h3>❌ Error</h3><p>${error.message}</p>`;
+            }
+        }
+
+        // Make function global
+        window.testAWSConnection = testAWSConnection;
+    </script>
+</body>
+
+</html>

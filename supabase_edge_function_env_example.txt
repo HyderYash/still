@@ -1,0 +1,31 @@
+# Email Notification Edge Function Environment Variables
+# Copy these to your Supabase Edge Function environment variables
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Email Service Configuration (Resend - recommended)
+RESEND_API_KEY=your_resend_api_key
+
+# Frontend URL for email links
+FRONTEND_URL=https://yourdomain.com
+
+# Alternative Email Services (uncomment and configure as needed)
+
+# SendGrid
+# SENDGRID_API_KEY=your_sendgrid_api_key
+# SENDGRID_FROM_EMAIL=notifications@yourdomain.com
+
+# AWS SES
+# AWS_ACCESS_KEY_ID=your_aws_access_key
+# AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+# AWS_REGION=us-east-1
+# AWS_SES_FROM_EMAIL=notifications@yourdomain.com
+
+# SMTP (for custom email servers)
+# SMTP_HOST=smtp.yourdomain.com
+# SMTP_PORT=587
+# SMTP_USERNAME=your_smtp_username
+# SMTP_PASSWORD=your_smtp_password
+# SMTP_FROM_EMAIL=notifications@yourdomain.com
