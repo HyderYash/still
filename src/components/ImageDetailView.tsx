@@ -49,10 +49,41 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const { user, isLoggedIn } = useUser();
+
+  // Debug logging
+  console.log("ImageDetailView Debug:", {
+    open,
+    image: image ? { id: image.id, name: image.name } : null,
+    projectId,
+    isLoggedIn,
+    user: user ? { id: user.id, email: user.email } : null,
+    showComments,
+    showActions
+  });
+
   const [newComment, setNewComment] = useState("");
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+
+  // Debug logs after state declarations (can be removed later)
+  console.log("Comment Input Section Debug:", {
+    isLoggedIn,
+    user,
+    commentInputVisible: true,
+    newComment,
+    replyingTo
+  });
+
+  // Debug authentication state and props (can be removed later)
+  console.log("ImageDetailView - Props and state:", {
+    user,
+    isLoggedIn,
+    imageId: image?.id,
+    showComments,
+    showActions,
+    open
+  });
   const [isLiked, setIsLiked] = useState(false);
   const [isMarkingMode, setIsMarkingMode] = useState(false);
   const [imageMarks, setImageMarks] = useState<ImageMark[]>([]);
@@ -65,11 +96,33 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
     data: commentsData = [],
     isLoading: commentsLoading,
     refetch: refetchComments,
+    error: commentsError,
   } = useQuery({
     queryKey: ["imageComments", image?.id],
     queryFn: () => getImageComments(image?.id || ""),
     enabled: !!image?.id,
   });
+
+  // Debug comment loading
+  console.log("Comment Query Debug:", {
+    imageId: image?.id,
+    commentsLoading,
+    commentsData,
+    commentsError,
+    enabled: !!image?.id
+  });
+
+  // Auto-retry comments if stuck loading for too long
+  useEffect(() => {
+    if (commentsLoading && image?.id) {
+      const timeout = setTimeout(() => {
+        console.log("Comments loading timeout - retrying...");
+        refetchComments();
+      }, 5000); // 5 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+  }, [commentsLoading, image?.id, refetchComments]);
 
   // Use API comments directly
   const effectiveComments = commentsData;
@@ -324,18 +377,19 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
     return isLoggedIn && user?.id === userId;
   };
 
-  if (!image) return null;
+  if (!image) {
+    console.log("ImageDetailView - No image provided:", { image, open, projectId });
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] lg:max-w-[95vw] h-[95vh] p-0 overflow-hidden bg-black/95 backdrop-blur-xl border-0">
+      <DialogContent className="max-w-[98vw] lg:max-w-[95vw] h-[95vh] max-h-[95vh] p-0 overflow-hidden bg-black/95 backdrop-blur-xl border-0 flex flex-col">
         <DialogTitle className="sr-only">Image Detail View</DialogTitle>
         <DialogDescription className="sr-only">View and interact with image details, comments, and marks</DialogDescription>
         <div className={cn(
           "grid h-full transition-all duration-500 ease-out",
-          showComments
-            ? "grid-cols-1 md:grid-cols-[1fr,400px] lg:grid-cols-[1fr,450px]"
-            : "grid-cols-1"
+          "grid-cols-1 md:grid-cols-[1fr,400px] lg:grid-cols-[1fr,450px]"
         )}>
 
           {/* Enhanced Image Section */}
@@ -522,229 +576,248 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
           </div>
 
           {/* Enhanced Comments Section */}
-          {showComments && (
-            <div
-              className="fixed inset-0 z-50 bg-gradient-to-br from-[#0f0f0f] via-[#1a1a1a] to-[#0f0f0f] flex flex-col border-l border-[#333]/50 transition-all duration-500 ease-out md:static md:z-auto md:h-full"
-            >
-              {/* Enhanced Header */}
-              <div className="p-6 border-b border-[#333]/50 flex-shrink-0 bg-gradient-to-r from-[#1a1a1a] to-[#151515]">
-                {/* Header Row 1: Title and Controls */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <h2 className="text-xl font-bold text-white mb-1">{image.name}</h2>
-                      <p className="text-sm text-gray-400">Image details and discussion</p>
+          <div
+            className="fixed inset-0 z-50 bg-gradient-to-br from-[#0f0f0f] via-[#1a1a1a] to-[#0f0f0f] flex flex-col border-l border-[#333]/50 transition-all duration-500 ease-out md:static md:z-auto md:h-full md:min-h-0"
+          >
+            {/* Enhanced Header */}
+            <div className="p-6 border-b border-[#333]/50 flex-shrink-0 bg-gradient-to-r from-[#1a1a1a] to-[#151515]">
+              {/* Header Row 1: Title and Controls */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <h2 className="text-xl font-bold text-white mb-1">{image.name}</h2>
+                    <p className="text-sm text-gray-400">Image details and discussion</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[#16ad7c] to-[#5ce1e6] rounded-lg flex items-center justify-center">
+                      <MessageCircle className="h-4 w-4 text-black" />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-[#16ad7c] to-[#5ce1e6] rounded-lg flex items-center justify-center">
-                        <MessageCircle className="h-4 w-4 text-black" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">Comments</h3>
-                        <div className="flex items-center gap-2">
-                          {effectiveComments.length > 0 && (
-                            <span className="text-xs text-gray-400">{effectiveComments.length} comment{effectiveComments.length !== 1 ? 's' : ''}</span>
-                          )}
-                          {imageMarks.length > 0 && (
-                            <>
-                              <span className="text-xs text-gray-400">•</span>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3 text-[#11ffb4]" />
-                                <span className="text-xs text-[#11ffb4]">{imageMarks.length} mark{imageMarks.length !== 1 ? 's' : ''}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Comments</h3>
+                      <div className="flex items-center gap-2">
+                        {effectiveComments.length > 0 && (
+                          <span className="text-xs text-gray-400">{effectiveComments.length} comment{effectiveComments.length !== 1 ? 's' : ''}</span>
+                        )}
+                        {imageMarks.length > 0 && (
+                          <>
+                            <span className="text-xs text-gray-400">•</span>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-[#11ffb4]" />
+                              <span className="text-xs text-[#11ffb4]">{imageMarks.length} mark{imageMarks.length !== 1 ? 's' : ''}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
-
-
                 </div>
 
-                {/* Header Row 2: Approval Status and Mobile Close */}
-                <div className="flex items-center justify-between">
-                  {/* Approval Status */}
-                  {image.is_approved && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-xl text-sm">
-                      <CheckCircle className="h-4 w-4" />
-                      Approved
-                    </div>
-                  )}
 
-
-                </div>
               </div>
 
-              {/* Enhanced Comments Content */}
-              <ScrollArea className="flex-1 p-6">
-                {commentsLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="w-16 h-16 border-4 border-[#16ad7c]/20 border-t-[#16ad7c] rounded-full animate-spin mb-4"></div>
-                    <p className="text-gray-400 text-lg">Loading comments...</p>
-                  </div>
-                ) : effectiveComments.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#16ad7c]/20 to-[#5ce1e6]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MessageCircle className="h-10 w-10 text-[#16ad7c]" />
-                    </div>
-                    <h4 className="text-lg font-semibold text-white mb-2">No comments yet</h4>
-                    <p className="text-gray-400">Be the first to comment on this image</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {Object.values(groupedComments).map(thread => (
-                      thread.parent && (
-                        <div key={thread.parent.id} className="comment-thread">
-                          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#151515] rounded-2xl p-4 border border-[#333]/30 hover:border-[#16ad7c]/20 transition-all duration-300">
-                            <div className="flex items-start gap-4">
-                              <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-[#16ad7c]/30">
-                                <AvatarImage src={thread.parent.author_avatar} />
-                                <AvatarFallback className="bg-gradient-to-br from-[#16ad7c] to-[#5ce1e6] text-black font-semibold">
-                                  {thread.parent.author_name?.charAt(0) || '?'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-white text-sm">
-                                      {thread.parent.author_name}
-                                    </span>
-                                    <span className="text-gray-400 text-xs">
-                                      {formatDate(thread.parent.created_at)}
-                                    </span>
-                                  </div>
-                                  {isOwnComment(thread.parent.user_id) && (
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-[#333]/50 rounded-lg"
-                                        onClick={() => handleEdit(thread.parent!)}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg"
-                                        onClick={() => handleDelete(thread.parent!.id)}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {editingComment === thread.parent.id ? (
-                                  <div className="space-y-3">
-                                    <Textarea
-                                      value={editedContent}
-                                      onChange={(e) => setEditedContent(e.target.value)}
-                                      className="bg-[#292929] border-[#444] text-white min-h-[80px] resize-none focus:border-[#16ad7c] transition-colors"
-                                      placeholder="Edit your comment..."
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setEditingComment(null)}
-                                        className="border-[#444] text-gray-400 hover:bg-[#333] hover:text-white"
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={handleUpdate}
-                                        className="bg-gradient-to-r from-[#16ad7c] to-[#5ce1e6] text-black font-semibold hover:from-[#5ce1e6] hover:to-[#16ad7c]"
-                                      >
-                                        Save
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <p className="text-gray-200 text-sm leading-relaxed mb-3">
-                                      {thread.parent.content}
-                                    </p>
-                                    {!replyingTo && isLoggedIn && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setReplyingTo(thread.parent!.id)}
-                                        className="text-[#16ad7c] hover:text-[#5ce1e6] hover:bg-[#16ad7c]/10 px-3 py-1 rounded-lg transition-all duration-300"
-                                      >
-                                        <Reply className="h-3.5 w-3.5 mr-1" />
-                                        Reply
-                                      </Button>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Replies */}
-                            {thread.replies.length > 0 && (
-                              <div className="mt-4 ml-14 space-y-3">
-                                <Separator className="bg-[#333]/50" />
-                                {thread.replies.map(reply => (
-                                  <div key={reply.id} className="flex items-start gap-3 group">
-                                    <Avatar className="h-8 w-8 flex-shrink-0 border border-[#333]">
-                                      <AvatarImage src={reply.author_avatar} />
-                                      <AvatarFallback className="bg-[#333] text-[#16ad7c] text-xs">
-                                        {reply.author_name?.charAt(0) || '?'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-medium text-white text-xs">
-                                            {reply.author_name}
-                                          </span>
-                                          <span className="text-gray-500 text-xs">
-                                            {formatDate(reply.created_at)}
-                                          </span>
-                                        </div>
-                                        {isOwnComment(reply.user_id) && (
-                                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-[#333]/50 rounded"
-                                              onClick={() => handleEdit(reply)}
-                                            >
-                                              <Pencil className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded"
-                                              onClick={() => handleDelete(reply.id)}
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <p className="text-gray-300 text-xs leading-relaxed">
-                                        {reply.content}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    ))}
+              {/* Header Row 2: Approval Status and Mobile Close */}
+              <div className="flex items-center justify-between">
+                {/* Approval Status */}
+                {image.is_approved && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-xl text-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    Approved
                   </div>
                 )}
-              </ScrollArea>
 
-              {/* Enhanced Comment Input */}
-              {isLoggedIn && (
-                <div className="p-6 border-t border-[#333]/50 bg-gradient-to-r from-[#1a1a1a] to-[#151515]">
+
+              </div>
+            </div>
+
+            {/* Enhanced Comments Content */}
+            <ScrollArea className="flex-1 p-6 min-h-0 overflow-y-auto">
+              {commentsLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 border-4 border-[#16ad7c]/20 border-t-[#16ad7c] rounded-full animate-spin mb-4"></div>
+                  <p className="text-gray-400 text-lg">Loading comments...</p>
+                  <p className="text-gray-500 text-sm mt-2">If this takes too long, there might be an issue</p>
+                  <Button
+                    onClick={() => refetchComments()}
+                    className="mt-4 bg-[#16ad7c] hover:bg-[#5ce1e6] text-black"
+                  >
+                    Retry Loading Comments
+                  </Button>
+                </div>
+              ) : effectiveComments.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-gradient-to-br from-[#16ad7c]/20 to-[#5ce1e6]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle className="h-10 w-10 text-[#16ad7c]" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-white mb-2">No comments yet</h4>
+                  <p className="text-gray-400">Be the first to comment on this image</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.values(groupedComments).map(thread => (
+                    thread.parent && (
+                      <div key={thread.parent.id} className="comment-thread">
+                        <div className="bg-gradient-to-br from-[#1a1a1a] to-[#151515] rounded-2xl p-4 border border-[#333]/30 hover:border-[#16ad7c]/20 transition-all duration-300">
+                          <div className="flex items-start gap-4">
+                            <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-[#16ad7c]/30">
+                              <AvatarImage src={thread.parent.author_avatar} />
+                              <AvatarFallback className="bg-gradient-to-br from-[#16ad7c] to-[#5ce1e6] text-black font-semibold">
+                                {thread.parent.author_name?.charAt(0) || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-white text-sm">
+                                    {thread.parent.author_name}
+                                  </span>
+                                  <span className="text-gray-400 text-xs">
+                                    {formatDate(thread.parent.created_at)}
+                                  </span>
+                                </div>
+                                {isOwnComment(thread.parent.user_id) && (
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-[#333]/50 rounded-lg"
+                                      onClick={() => handleEdit(thread.parent!)}
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg"
+                                      onClick={() => handleDelete(thread.parent!.id)}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {editingComment === thread.parent.id ? (
+                                <div className="space-y-3">
+                                  <Textarea
+                                    value={editedContent}
+                                    onChange={(e) => setEditedContent(e.target.value)}
+                                    className="bg-[#292929] border-[#444] text-white min-h-[80px] resize-none focus:border-[#16ad7c] transition-colors"
+                                    placeholder="Edit your comment..."
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setEditingComment(null)}
+                                      className="border-[#444] text-gray-400 hover:bg-[#333] hover:text-white"
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={handleUpdate}
+                                      className="bg-gradient-to-r from-[#16ad7c] to-[#5ce1e6] text-black font-semibold hover:from-[#5ce1e6] hover:to-[#16ad7c]"
+                                    >
+                                      Save
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-gray-200 text-sm leading-relaxed mb-3">
+                                    {thread.parent.content}
+                                  </p>
+                                  {!replyingTo && isLoggedIn && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setReplyingTo(thread.parent!.id)}
+                                      className="text-[#16ad7c] hover:text-[#5ce1e6] hover:bg-[#16ad7c]/10 px-3 py-1 rounded-lg transition-all duration-300"
+                                    >
+                                      <Reply className="h-3.5 w-3.5 mr-1" />
+                                      Reply
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Replies */}
+                          {thread.replies.length > 0 && (
+                            <div className="mt-4 ml-14 space-y-3">
+                              <Separator className="bg-[#333]/50" />
+                              {thread.replies.map(reply => (
+                                <div key={reply.id} className="flex items-start gap-3 group">
+                                  <Avatar className="h-8 w-8 flex-shrink-0 border border-[#333]">
+                                    <AvatarImage src={reply.author_avatar} />
+                                    <AvatarFallback className="bg-[#333] text-[#16ad7c] text-xs">
+                                      {reply.author_name?.charAt(0) || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-white text-xs">
+                                          {reply.author_name}
+                                        </span>
+                                        <span className="text-gray-500 text-xs">
+                                          {formatDate(reply.created_at)}
+                                        </span>
+                                      </div>
+                                      {isOwnComment(reply.user_id) && (
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-[#333]/50 rounded"
+                                            onClick={() => handleEdit(reply)}
+                                          >
+                                            <Pencil className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded"
+                                            onClick={() => handleDelete(reply.id)}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <p className="text-gray-300 text-xs leading-relaxed">
+                                      {reply.content}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Enhanced Comment Input */}
+            <div className="p-6 border-t border-[#333]/50 bg-gradient-to-r from-[#1a1a1a] to-[#151515] flex-shrink-0">
+              {!isLoggedIn ? (
+                <div className="text-center py-4">
+                  <p className="text-gray-400 mb-3">Please log in to add comments</p>
+                  <Button
+                    onClick={() => {
+                      console.log("User needs to log in to comment");
+                    }}
+                    className="bg-gradient-to-r from-[#16ad7c] to-[#5ce1e6] hover:from-[#5ce1e6] hover:to-[#16ad7c] text-black font-semibold px-6 py-2 rounded-xl transition-all duration-300"
+                  >
+                    Log In to Comment
+                  </Button>
+                </div>
+              ) : (
+                <>
                   {replyingTo ? (
                     <div className="mb-3 p-3 bg-[#16ad7c]/10 border border-[#16ad7c]/20 rounded-lg">
                       <div className="flex items-center justify-between">
@@ -791,10 +864,10 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
                       )}
                     </Button>
                   </div>
-                </div>
+                </>
               )}
             </div>
-          )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
