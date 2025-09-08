@@ -88,6 +88,7 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
   const [isMarkingMode, setIsMarkingMode] = useState(false);
   const [imageMarks, setImageMarks] = useState<ImageMark[]>([]);
   const [isLoadingMarks, setIsLoadingMarks] = useState(false);
+  const [showMarks, setShowMarks] = useState(true);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -393,7 +394,7 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
         )}>
 
           {/* Enhanced Image Section */}
-          <div className="relative bg-gradient-to-br from-black via-gray-900 to-black overflow-hidden flex items-center justify-center h-full group">
+          <div className="relative bg-gradient-to-br from-black via-gray-900 to-black overflow-auto flex items-center justify-center min-h-full group">
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-20">
               <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(22,173,124,0.1),transparent_50%)]"></div>
@@ -403,7 +404,7 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
               <ImageMarkingCanvas
                 imageUrl={image.url}
                 imageName={image.name}
-                marks={imageMarks}
+                marks={showMarks ? imageMarks : []}
                 onAddMark={handleAddMark}
                 onUpdateMark={handleUpdateMark}
                 onDeleteMark={handleDeleteMark}
@@ -412,11 +413,26 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
                 isLoadingMarks={isLoadingMarks}
               />
             ) : (
-              <img
-                src={image.url}
-                alt={image.name}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              />
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img
+                  src={image.url}
+                  alt={image.name}
+                  className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+                {showMarks && imageMarks.length > 0 && (
+                  <ImageMarkingCanvas
+                    imageUrl={image.url}
+                    imageName={image.name}
+                    marks={imageMarks}
+                    onAddMark={() => { }}
+                    onUpdateMark={() => { }}
+                    onDeleteMark={() => { }}
+                    isMarkingMode={false}
+                    onToggleMarkingMode={() => { }}
+                    isLoadingMarks={false}
+                  />
+                )}
+              </div>
             )}
 
             {/* Enhanced Navigation Arrows */}
@@ -476,8 +492,23 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
                     "bg-black/40 hover:bg-black/60 border border-white/20 hover:border-[#16ad7c]/40 text-white hover:text-[#16ad7c] rounded-full h-10 w-10 backdrop-blur-sm transition-all duration-300",
                     isMarkingMode && "bg-[#16ad7c]/20 border-[#16ad7c]/40 text-[#16ad7c]"
                   )}
+                  title={isMarkingMode ? "Exit Marking Mode" : "Enter Marking Mode"}
                 >
                   <MousePointer className="h-5 w-5" />
+                </Button>
+
+                {/* Show/Hide Marks Button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowMarks(!showMarks)}
+                  className={cn(
+                    "bg-black/40 hover:bg-black/60 border border-white/20 hover:border-[#11ffb4]/40 text-white hover:text-[#11ffb4] rounded-full h-10 w-10 backdrop-blur-sm transition-all duration-300",
+                    showMarks && "bg-[#11ffb4]/20 border-[#11ffb4]/40 text-[#11ffb4]"
+                  )}
+                  title={showMarks ? "Hide Marks" : "Show Marks"}
+                >
+                  <MapPin className="h-5 w-5" />
                 </Button>
 
                 {/* Demo Marks Button - Remove this in production */}
@@ -628,6 +659,68 @@ const ImageDetailView: React.FC<ImageDetailViewProps> = ({
 
               </div>
             </div>
+
+            {/* Mark Comments Panel */}
+            {imageMarks.length > 0 && (
+              <div className="border-b border-[#333]/50 bg-gradient-to-r from-[#1a1a1a] to-[#151515]">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-[#11ffb4]" />
+                      <h3 className="text-sm font-semibold text-white">Mark Comments</h3>
+                      <span className="text-xs text-gray-400">({imageMarks.filter(mark => mark.comment).length} with comments)</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMarks(!showMarks)}
+                      className={cn(
+                        "text-xs px-2 py-1 h-6 text-gray-400 hover:text-[#11ffb4] transition-colors",
+                        showMarks && "text-[#11ffb4]"
+                      )}
+                    >
+                      {showMarks ? "Hide" : "Show"} Marks
+                    </Button>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {imageMarks
+                      .filter(mark => mark.comment)
+                      .map((mark) => (
+                        <div
+                          key={mark.id}
+                          className="p-3 bg-[#2A2A2A]/30 rounded-lg border border-[#16ad7c]/20 hover:border-[#16ad7c]/40 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`w-2 h-2 rounded-full bg-${mark.color}-500`}></div>
+                            <span className="text-xs text-gray-300 font-medium">
+                              {mark.type} at ({Math.round(mark.x)}, {Math.round(mark.y)})
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-200 leading-relaxed mb-2">{mark.comment}</p>
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <span>by</span>
+                              <span className="text-[#11ffb4] font-medium">
+                                {mark.author || "Anonymous"}
+                              </span>
+                            </span>
+                            {mark.timestamp && (
+                              <span>
+                                {new Date(mark.timestamp).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Enhanced Comments Content */}
             <ScrollArea className="flex-1 p-6 min-h-0 overflow-y-auto">
